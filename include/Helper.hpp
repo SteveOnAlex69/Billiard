@@ -15,6 +15,9 @@ const sf::Vector2u windowSize = sf::Vector2u(1920, 1200);
 float dotProduct(Point2 a, Point2 b);
 float dotProduct(Point3 a, Point3 b);
 
+
+float getArea(Point2 a, Point2 b, Point2 c);
+
 std::ostream& operator << (std::ostream& os, Point2 x);
 std::ostream& operator << (std::ostream& os, Point3 x); 
 

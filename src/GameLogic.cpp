@@ -1,5 +1,6 @@
 ﻿#include <Helper.hpp>
 #include <GameLogic.hpp>
+#include <World.hpp>
 #include <iostream>
 #include <filesystem>
 #include <vector>
@@ -10,33 +11,46 @@
 
 #define ll long long
 #define GETBIT(mask, i) (((mask) >> (i)) & 1)
+#define ALL(v) (v).begin(), (v).end()
 
-const int FACE = 3e5;
+const int FACE = 9e5;
 const float PI = atan(1) * 4;
 sf::Font font;
 std::string FONT_PATH = std::string(PROJECT_DIR) + "assets/Font/english.otf";
 sf::VertexArray tri(sf::PrimitiveType::Triangles, FACE);
 
 Point3 player_pos;
+Point3 looking(1e9, 1e9, 1e9), looking_blank(1e9, 1e9, 1e9);
 double pitch, yaw;
 double current_second;
+double fov;
 int frame_count;
 int fps;
+World world;
 
-const double MOVEMENT_SPEED = 5, SENSITIVITY = 1;
+const double MOVEMENT_SPEED = 10, SENSITIVITY = 1;
+double cool_down = 0;
 
 void appStart(sf::RenderWindow& appwindow) {
 	appwindow.setMouseCursorVisible(false);
 	sf::Mouse::setPosition(sf::Vector2i(windowSize.x / 2, windowSize.y / 2), appwindow);
-	player_pos = Point3(0, 0, 0);
+	player_pos = Point3(0, 30, 0);
 	pitch = PI / 2;
 	yaw = 0;
+	fov = 1;
 
 	current_second = 0;
 	frame_count = 0;
 	fps = 0;
 
 	font.openFromFile(FONT_PATH.c_str());
+
+	for(int i = 0; i < W; ++i)
+		for (int j = 0; j < W; ++j) {
+			int cap = rngesus(16, 16);
+			for (int k = 0; k < cap; ++k)
+				world.modify_block_type(i, k, j, 1);
+	}
 }
 
 void handle_keypress(float delta) {
@@ -65,7 +79,7 @@ void handle_keypress(float delta) {
 }
 
 
-void handle_mouse_movement(sf::RenderWindow& appwindow) {
+void handle_mouse(sf::RenderWindow& appwindow, float delta) {
 	sf::Vector2i center = sf::Vector2i(windowSize.x / 2, windowSize.y / 2);
 	sf::Vector2i mousePos = sf::Mouse::getPosition(appwindow);
 	sf::Vector2i mouseDelta = mousePos - center;
@@ -73,6 +87,19 @@ void handle_mouse_movement(sf::RenderWindow& appwindow) {
 	
 	yaw += mouseDelta.x * 0.001f * SENSITIVITY;
 	pitch += mouseDelta.y * 0.001f * SENSITIVITY;
+
+	cool_down -= delta;
+	if (cool_down <= 0) {
+		if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+			world.modify_block_type(looking.x, looking.y, looking.z, 0);
+			cool_down = 0.25;
+		}
+		else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right)) {
+			world.modify_block_type(looking_blank.x, looking_blank.y, looking_blank.z, 1);
+			cool_down = 0.25;
+		}
+	}
+		
 }
 
 int pollEvent(sf::RenderWindow& appwindow) { // if window is closed, return 0
@@ -83,13 +110,24 @@ int pollEvent(sf::RenderWindow& appwindow) { // if window is closed, return 0
 			appwindow.close();
 			return 0;
 		}
+		else if (event->is<sf::Event::MouseWheelScrolled>()){
+				const auto& e = event->getIf<sf::Event::MouseWheelScrolled>();
+
+				float delta = e -> delta;      
+				fov *= exp(delta * 0.1f);
+			}
 	}
 
 	return return_val;
 }
 
+Point2 to2DSpace(Point3 p) {
+	return Point2(p.x / p.z * 0.8, p.y / p.z);
+}
+
 Point2 toCameraSpace(Point3 p) {
-	Point2 tmp(p.x / p.z * 0.8 + 0.5, -p.y / p.z + 0.5);
+	Point2 space = to2DSpace(p);
+	Point2 tmp(space.x * fov + 0.5, -space.y * fov + 0.5);
 	return Point2(tmp.x * windowSize.x, tmp.y * windowSize.y);
 }
 
@@ -133,6 +171,19 @@ Point3 externalTransform(Point3 p) {
 	return v;
 }
 
+
+bool check_seeing(Point3 a, Point3 b, Point3 c) {
+	if (std::min({ a.z, b.z, c.z }) < 0.2) return false;
+	Point2 x = to2DSpace(a), y = to2DSpace(b), z = to2DSpace(c);
+	for (int i = 0; i < 3; ++i) {
+		if (getArea(x, y, z) * getArea(x, y, Point2(0, 0)) <= 0)
+			return false;
+		std::swap(x, y);
+		std::swap(x, z);
+	}
+	return true;
+}
+
 void draw_cube(Point3 bruh) {
 	Point3 vertex[8];
 	for (int i = 0; i < 8; ++i) {
@@ -146,7 +197,6 @@ void draw_cube(Point3 bruh) {
 		vertex[i] = externalTransform(vertex[i]);
 	}
 
-	Point3 diff;
 
 	// dot product < 0 means visible. That's how geometry work I think
 	Point3 normal[6] = {Point3(0, -1, 0), Point3(0, 1, 0) ,
@@ -163,18 +213,36 @@ void draw_cube(Point3 bruh) {
 	Point3 light_cast(-0.5, -2, -1);
 	
 	for (int f = 0; f < 6; ++f) {
+		Point3 point = bruh + normal[f];
+		if (world.get_block_type(point.x, point.y, point.z))
+			continue;
+
 		float light_intensity = dotProduct(light_cast, normal[f]);
 		float brightness = 140 - light_intensity * 40;
 		sf::Color cur = sf::Color(brightness, brightness, brightness);
+		sf::Color debug_color = sf::Color(brightness, brightness, 0);
 
-		diff = bruh - player_pos + normal[f] * 0.5f;
+		Point3 diff = bruh - player_pos + normal[f] * 0.5f;
 		if (dotProduct(diff, normal[f]) < 0) {
 			int a = used_vertex[f][0];
 			int b = used_vertex[f][1];
 			int c = used_vertex[f][2];
 			int d = used_vertex[f][3];
-			add_triangle_3d(vertex[a], vertex[b], vertex[c], cur);
-			add_triangle_3d(vertex[d], vertex[b], vertex[c], cur);
+			sf::Color used = cur;
+			if ((player_pos - bruh).length() <= 10) {
+				if (check_seeing(vertex[a], vertex[b], vertex[c]) ||
+					check_seeing(vertex[d], vertex[b], vertex[c])) {
+					looking = bruh;
+					used = debug_color;
+					
+					if (world.get_block_type(point.x, point.y, point.z) == 0) {
+						looking_blank = point;
+					}
+				}
+			}
+			add_triangle_3d(vertex[a], vertex[b], vertex[c], used);
+			add_triangle_3d(vertex[d], vertex[b], vertex[c], used);
+
 		}
 	}
 }
@@ -185,9 +253,31 @@ void draw_text(sf::RenderWindow& appwindow) {
 	cur.setFillColor(sf::Color::White);
 	
 	std::string text = "FPS: " + std::to_string(fps) + ", Face count: " + std::to_string(face_indx / 3);
+	text += ", FOV: " + std::to_string(fov);
 	cur.setString(text);
 	
 	appwindow.draw(cur);
+}
+
+
+void draw_ui(sf::RenderWindow& appwindow) {
+	sf::VertexArray crosshair(sf::PrimitiveType::Triangles, 12);
+	sf::Vector2f center = sf::Vector2f(windowSize.x / 2, windowSize.y / 2);
+	for (int i = 0; i < 12; ++i) crosshair[i].color = sf::Color::Cyan;
+
+	sf::Vector2f offsetX(3, 0), offsetY(0, 15);
+	crosshair[0].position = center - offsetX - offsetY;
+	crosshair[3].position = center + offsetX + offsetY;
+	crosshair[1].position = crosshair[4].position = center - offsetX + offsetY;
+	crosshair[2].position = crosshair[5].position = center + offsetX - offsetY;
+
+	offsetX = Point2(15, 0), offsetY = Point2(0, 3);
+	crosshair[6].position = center - offsetX - offsetY;
+	crosshair[9].position = center + offsetX + offsetY;
+	crosshair[7].position = crosshair[10].position = center - offsetX + offsetY;
+	crosshair[8].position = crosshair[11].position = center + offsetX - offsetY;
+
+	appwindow.draw(crosshair);
 }
 
 void handle_timer(double delta) {
@@ -204,14 +294,40 @@ void appLoop(sf::RenderWindow& appwindow, float delta) {
 	int cur = pollEvent(appwindow);
 	if (cur == 0) return;
 	appwindow.clear(sf::Color::Black);
+
 	reset_face();
 	handle_timer(delta);
 	handle_keypress(delta);
-	handle_mouse_movement(appwindow);
+	handle_mouse(appwindow, delta);
+	looking = looking_blank = Point3(1e9, 1e9, 1e9);
 
-	draw_cube(Point3(1, -2, 7));
+	std::vector<int> orderX, orderY, orderZ;
+	for (int i = 0; i < W; ++i) {
+		orderX.push_back(i);
+		orderY.push_back(i);
+		orderZ.push_back(i);
+	}
+
+	std::sort(ALL(orderX), [](int a, int b) {
+		return std::abs(player_pos.x - a) > std::abs(player_pos.x - b);
+		});
+	std::sort(ALL(orderY), [](int a, int b) {
+		return std::abs(player_pos.y - a) > std::abs(player_pos.y - b);
+		});
+	std::sort(ALL(orderZ), [](int a, int b) {
+		return std::abs(player_pos.z - a) > std::abs(player_pos.z - b);
+		});
+
+	std::cerr << "Frame\n";
+	for (int i: orderX)
+		for (int j: orderY)
+			for (int k: orderZ) 
+				if (world.get_block_type(i, j, k))
+					draw_cube(Point3(i, j, k));
 
 	draw_all_face(appwindow);
 	draw_text(appwindow);
+	draw_ui(appwindow);
+
 	appwindow.display();
 }

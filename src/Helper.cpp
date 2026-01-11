@@ -11,6 +11,11 @@ float dotProduct(Point3 a, Point3 b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+
+float getArea(Point2 a, Point2 b, Point2 c) {
+	return a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y);
+}
+
 std::ostream& operator << (std::ostream& os, Point2 x) {
 	return os << "(" << x.x << ", " << x.y << ")";
 }
