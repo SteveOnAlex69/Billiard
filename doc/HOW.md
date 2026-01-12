@@ -48,14 +48,14 @@ We need to draw the face of a cube (I think this is generally called a square). 
 
 *Figure 2: A square that consists of two triangles for all of my kindergarten boys out there.*
 
-To draw a cube, we need to draw 6 faces, so yeah.
+To draw a cube, we need to draw 6 faces.
 
 Or do we?
 
 Generally speaking, we cannot see the back of a cube, so in reality, only 1-3 faces of a cube is visible to a player. But how do we know which face should we draw? There is a neat technique: Dot product.
 
 In case you haven't graduated middle-school, dot product of two vector generally tell us how are they oriented. In other words, they behaves kind of the same as 
-$\cos(\angle(\mathbf{u}, \mathbf{v}))$.
+$\cos \widehat{(\mathbf{u}, \mathbf{v})}$.
 
 If two vector make less than a 90 degree angle, their dot product will be positive. If they are perpendicular, their dot product will be 0. Otherwise, their dot product is negative. You can search up how are they computed.
 
@@ -74,12 +74,12 @@ We have these three attributes: Player position, their yaw (horizontal orientati
 
 Our idea is to translate and rotate all the points, such that in the end, we are at point $(0, 0, 0)$ and is looking at $(0, 0, 1)$. Then we do the camera transformation like above.
 
-First, is the player position. We just subtract the vertex position from the player position. Pretty easy, just move on.
+First, is the player position. We just subtract the vertex position from the player position. Pretty easy.
 
-Next up is the player orientation, which are their yaw and pitch. Note that doing yaw rotation first, then pitch rotation is not the same as doing pitch first then yaw. They are actually linear transformation, a.k.a matrix multiplication, and if you graduated middle school, matrix multiplication is not commutative.
+Next up is the player orientation, which are their yaw and pitch. Note that doing yaw rotation first, then pitch rotation is not the same as doing pitch first then yaw. These are linear transformation, a.k.a matrix multiplication, and if you graduated middle school, matrix multiplication is not commutative.
 
 
-Doing these guys is pretty easy, you just multiply each X, Y, Z by some cosine and sin of yaw and pitch and add or subtract them. One easy check if you are doing it correctly is that the determinant of the matrix has to equal 1 i.e. the volume of our cube is conserved (read what determinant means if you don't know). 
+Doing these is pretty easy, you just multiply each X, Y, Z by some cosine and sin of yaw and pitch and add or subtract them. One easy check if you are doing it correctly is that the determinant of the transformation matrix has to equal 1 i.e. the volume of our cube is conserved (read what determinant means if you don't know). 
 
 This is an example of an incorrect transformation:
 
@@ -122,7 +122,7 @@ Our 3D is basically done, we successfully draw a cube!
 
 ### 4. Polishing stuff
 
-So is that it? Did we conquer Japan? Hell no.
+So is that it? Did we conquer Japan? Not yet.
 
 ![alt text](image-3.png)
 
@@ -148,7 +148,7 @@ for (int f = 0; f < 6; ++f) {
 
 So we generated one cube. How do we generate multiple cube? Generate multiple cube is harder, since we have to know which face to generate first.
 
-The naive solution would be to make all the faces, then sort them by distance to the player. This is excruciatingly slow. However, as we have mentioned before, cube behaves nicely, and so we can generate blocks by their distance to the player. Any distance function will work.
+The naive solution would be to make all the faces, then sort them by distance to the player. This runs in $O(F \log F)$, which is excruciatingly slow. However, as we have mentioned before, cube behaves nicely, and so we can generate blocks by their distance to the player. Any distance function will work.
 
 Here is how the code looks like.
 
@@ -178,20 +178,20 @@ for (int i: orderX)
 				draw_cube(Point3(i, j, k));
 ```
 
-So we can draw multiple cube now. That's great, but our program performance sucks.
+So we can draw multiple cube in $O(F)$ now. That's great, but our program performance still sucks.
 
 Here is a few optimization tricks:
 
 - If a face is facing another block, you can skip generating the face.
-- Load everyone into the VertexArray at once, then use a single draw call. If you create a VertexArray and draw call for every single triangle, then it would be a shit load of overhead.
+- Load everyone into the buffer at once, then use a single draw call. If you create a buffer and draw call for every single triangle, then it would be a shit load of overhead.'
 
-I think I can optimize this a bit more, but I'm too tired anyway.
+This should speed up our program by an order of magnitude. I think I can optimize this a bit more, but I'm too tired.
 
 ### 5. Player interaction.
 
 We will also implement breaking and placing block.
 
-I'm too lazy to work the optimized math out for really long range. Luckily, Minecraft only allow reaching 5 blocks, so I'm thankful.
+I'm too lazy to work out the optimized math for really long range. Luckily, Minecraft only allow reaching 5 blocks, so I'm thankful.
 
 My solution is literally just look through blocks with distance of less than 5 from the player, then check if the player can see one of the face of the block.
 
