@@ -23,7 +23,6 @@ $$
 m_1 * v_1 + m_2 * v_2 &= C \\
 m_1 * v_1^2 + m_2 * v_2^2 &= D 
 \end{aligned}
-
 $$
 
 With $C$ and $D$ be some constant.
