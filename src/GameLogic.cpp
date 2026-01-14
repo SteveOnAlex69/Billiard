@@ -35,15 +35,9 @@ bool board_idle() {
 	return true;
 }
 
-void appStart(sf::RenderWindow& appwindow) {
-	affare = Point2(0, 0);
-	screen_center = Point2(windowSize.x / 2, windowSize.y / 2);
-	font.openFromFile(FONT_PATH.c_str());
 
-	med.init();
-	med.setAudioVolume(100);
-	collision_count = 0;
-
+void new_game() {
+	o.clear();
 	o.push_back(Entity(1, 0, Point2(windowSize.x / 2 - 500, windowSize.y / 2), Point2(0, 0)));
 
 	std::vector<int> color(15);
@@ -58,10 +52,10 @@ void appStart(sf::RenderWindow& appwindow) {
 	std::shuffle(1 + ALL(color), rng);
 
 	std::swap(color[0], color[4]);
-	
+
 	const int R1 = 20;
 	int cnt = 0;
-	
+
 	for (int i = 1; i <= 5; ++i) {
 		Point2 root_point = Point2(windowSize.x / 2 + 300, windowSize.y / 2);
 		root_point.x += std::sqrt(3) * R1 * (i - 1);
@@ -71,6 +65,21 @@ void appStart(sf::RenderWindow& appwindow) {
 			o.push_back(Entity(1, color[cnt++], Point2(root_point.x, root_point.y + R1 * j * 2)));
 		}
 	}
+	affare = Point2(0, 0);
+
+	med.play_audio(SoundEffect::DING);
+}
+
+
+void appStart(sf::RenderWindow& appwindow) {
+	screen_center = Point2(windowSize.x / 2, windowSize.y / 2);
+	font.openFromFile(FONT_PATH.c_str());
+
+	med.init();
+	med.setAudioVolume(100);
+	collision_count = 0;
+
+	new_game();
 
 	for(int i = -1; i <= 1; i += 2)
 		for (int j = -1; j <= 1; ++j) {
@@ -79,13 +88,21 @@ void appStart(sf::RenderWindow& appwindow) {
 		}
 }
 
-
 float getRadius(Entity o) {
 	return R;
 }
 
+bool pressing = false;
 void handle_keypress(float delta) {
-
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::N)) {
+		pressing = true;
+	}
+	else {
+		if (pressing == true) {
+			new_game();
+			pressing = false;
+		}
+	}
 }
 
 
@@ -184,7 +201,7 @@ void collision(Entity& o1, Entity& o2) {
 	o1.v += diff * l;
 	o2.v -= diff * l * weight_diff;
 
-	float half_spin = (o1.r_z + o2.r_z) / 2;
+	float half_spin = (o1.r_z * o1.m + o2.r_z * o2.m) / (o1.m + o2.m);
 	o1.r_z -= half_spin;
 	o2.r_z -= half_spin;
 }
@@ -197,6 +214,8 @@ void handle_physics(float delta) {
 				if (check_collide(o[i], o[j], delta)) {
 					found = true;
 					collision(o[i], o[j]);
+					o[i].r *= 0.9f;
+					o[j].r *= 0.9f;
 					med.play_audio(SoundEffect::CLACK);
 					collision_count++;
 				}
@@ -253,7 +272,6 @@ void draw_text(sf::RenderWindow& appwindow) {
 	dih2.setString(cur2);
 
 	appwindow.draw(dih2);
-
 
 
 	sf::Text dih3(font);
@@ -434,6 +452,13 @@ void handle_ball(float delta) {
 		}
 	}
 
+	bool check = false;
+	for (auto i : o) if (i.t == 3) check = true;
+	if (check == false) {
+		new_game();
+		return;
+	}
+
 	if (board_idle() && (o.empty() || o[0].t != 0)) {
 		while (true) {
 			Point2 lmao(rngesus(-200, 200), rngesus(-200, 200));
@@ -470,6 +495,7 @@ void appLoop(sf::RenderWindow& appwindow, float delta) {
 	}
 
 	handle_ball(delta);
+	handle_keypress(delta);
 	handle_physics(delta);
 	draw_object(appwindow);
 	draw_text(appwindow);

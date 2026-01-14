@@ -1,204 +1,209 @@
-# How did I render 3D stuff
+# How did I modeled billiard game
 
 ### 0. Opening
 
-So I was reading some linear algebra stuff, when something clicked, and I went straight into coding this.
+I'm kinda on a streak to shitpost right now, so let's get to it.
 
-Overall, this is pretty much a shitpost. Completely unusable on a CV, and I'm not inventing anything new, nor doing things optimally, since I was using something that is meant for 2D stuff for 3D drawing (so, no nice stuff like shader or things like that).
+I've spent more time than I would like to admit on the physics part of this project. But in the end, I think it was pretty fun trying to grasp concepts that is very uncomfortable to think about. I'm pretty proud of the fact that I didn't use LLM assistance on any of my (shitpost) projects so far.
 
-But, I find the process of working the basics of the 3D math pretty fun, so... enjoy the thought process of me trying to make sense of 3D stuff for 3 hours.
+I wrote my thought process here to partly communicate to my future self what I was doing, partly to immortalize this piece of crap (I am kinda proud of this), and also for you guys to sit and read into what I was thinking. I hope you enjoy this draft as well as I have been enjoying thinking about this physics problem.
 
-### 1. What do I have
+### 1. Elastic 1D collision
 
-I used the SFML library for my Go Game project in my first semester, and I am already used to it, so why not trying to figure out something fun?
+Now, we are dealing with a simplified version of the problem:
 
-In SFML, there is little to no support with 3D stuff. I mean, you can learn OpenGL and mix it with SFML, but I'm too lazy to learn OpenGL, so let's use what I already know:
+- On a straight line, there is a ball of mass $m_1$ and velocity $v_1$ collide with a ball of mass $m_2$ and velocity $v_2$. What are their final velocity after the collision, assuming the collision was perfectly elastic?
 
-- `draw_triangle(Point2 a, Point2 b, Point2 c, Color co);`: Draw a triangle of color `co` between point a, b, and c.
+An elastic collision means that the total momentum and the total kinetic energy of the system are the same.
 
-This will be our MVP function for this.
+In other word:
 
-### 2. Point and Faces in 3D
+$$
+\left\{
+\begin{array}{l}
+m_1 * v_1 + m_2 * v_2 = C \\
+m_1 * v_1^2 + m_2 * v_2^2 = D 
+\end{array}
+\right.
 
-So, let's set ourselves a few convention first. Our player will stand at coordinate $(0, 0, 0)$, and will be looking in the Z-direction. In other word, their direction vector will be $(0, 0, 1)$.
+$$
 
-Our first problem is this: if there is a point of coordinate $(x, y, z)$, where would it be on our screen?
+With $C$ and $D$ be some constant.
+
+We can solve this system of equation by substituting $v_2$ for $v_1$ and solve the quadratic formula. However, we don't actually need to, because we already have a solution, which is our initial set of speed.
+
+With a few lines of reasoning of algebra (taking advantage of the fact that in the quadratic formula $ax^2 + bx + c = 0$, the sum of the two solution would be $-\frac{b}{a}$), we know that:
+
+
+$$
+\left\{
+\begin{array}{l}
+S = \frac{m_1 * v_1 + m_2 * v_2}{m_1 + m_2}\\
+v_3 = S - v_1 \\
+v_4 = S - v_2
+\end{array}
+\right.
+$$
+
+That's actually pretty clean! With this alone, we can already do some pretty interesting experiment, such as computing PI using colliding objects:
+
+[![The most unexpected answer to a counting puzzle
+](https://img.youtube.com/vi/HEfHFsfGXjs/0.jpg)](https://www.youtube.com/watch?v=HEfHFsfGXjs)
+
+
+### 2. Elastic 2D collision
+
+The same as the last problem, but now, two object are colliding in 2D space. The math become much harder, because not only we have to somehow compute the final velocity such that they make sense, the total amount of momentum and kinetic energy is conserved, and the velocity vector has to change by a multiple of the normal force as well.
 
 ![alt text](image.png)
 
-*Figure 1: How our field of view and our screen will look like. Sorry for the wrong coordinate.*
+*Figure 1: Two balls are colliding. As you can see, they have their own velocity, but the only force that are changing the balls' movement are the normal force.*
 
-Looking at the above figure, the red part is our field of view, and the green part is our camera. 
+We can still make quadratic formula like in the last part. However, I would like something that is easier to think about, harder to mess up, and still have great accuracy. 
 
-Notice how when we move toward higher and higher Z, our camera got linearly bigger. So this is our plan: we are going to somehow transform the point, so that it will still be on the same place on the screen, but it would be more comfortable to think about.
-
-The transformation is just:
-
-$(x, y, z) \rightarrow (\frac{x}{z}, \frac{y}{z}, 1)$.
-
-Notice how after the transformation, the Z-coordinate of every point are the same. This mean we can omit the Z-coordinate and be left with 2D coordinate, which are going to be what will be rendered on our screen. Great!
-
-(Note that our 2D coordinate have X and Y value ranges from $-1$ to $1$, but the transform onto our game screen is trivial from this point).
-
-Now we need to draw faces, then draw shapes, then draw terrains, and things like that. Our choice of game to "imitate" is going to be Minecraft, because they only contains cubes, and cubes behave nicely.
-
-We need to draw the face of a cube (I think this is generally called a square). This should not be rocket science, a square is two triangle, and we can draw triangle. So... two triangle draw call.
-
-![alt text](image-1.png)
-
-*Figure 2: A square that consists of two triangles for all of my kindergarten boys out there.*
-
-To draw a cube, we need to draw 6 faces.
-
-Or do we?
-
-Generally speaking, we cannot see the back of a cube, so in reality, only 1-3 faces of a cube is visible to a player. But how do we know which face should we draw? There is a neat technique: Dot product.
-
-In case you haven't graduated middle-school, dot product of two vector generally tell us how are they oriented. In other words, they behaves kind of the same as 
-$\cos \widehat{(\mathbf{u}, \mathbf{v})}$.
-
-If two vector make less than a 90 degree angle, their dot product will be positive. If they are perpendicular, their dot product will be 0. Otherwise, their dot product is negative. You can search up how are they computed.
-
-![alt text](image-2.png)
-
-*Figure 3: Our direction vector vs the face normal vector.*
-
-From this, figuring out which faces are visible should be obvious. If the dot product between the normal vector of a face and our direction vector are negative, this means they can see each other.
-
-
-### 3. Player movement and rotation.
-
-This section is tedious, but not hard.
-
-We have these three attributes: Player position, their yaw (horizontal orientation), and their pitch (vertical orientation). We need to somehow make the 3D object render according to our player position.
-
-Our idea is to translate and rotate all the points, such that in the end, we are at point $(0, 0, 0)$ and is looking at $(0, 0, 1)$. Then we do the camera transformation like above.
-
-First, is the player position. We just subtract the vertex position from the player position. Pretty easy.
-
-Next up is the player orientation, which are their yaw and pitch. Note that doing yaw rotation first, then pitch rotation is not the same as doing pitch first then yaw. These are linear transformation, a.k.a matrix multiplication, and if you graduated middle school, matrix multiplication is not commutative.
-
-
-Doing these is pretty easy, you just multiply each X, Y, Z by some cosine and sin of yaw and pitch and add or subtract them. One easy check if you are doing it correctly is that the determinant of the transformation matrix has to equal 1 i.e. the volume of our cube is conserved (read what determinant means if you don't know). 
-
-This is an example of an incorrect transformation:
+Let's look at the system of equation again.
 
 $$
-\begin{pmatrix}
-\cos(\theta) & 0 & \sin(\theta) \\
-0 & 1 & 0 \\
-\sin(\theta) & 0 & \cos(\theta)
-\end{pmatrix}
+\left\{
+\begin{array}{l}
+m_1 * v_{x_1} + m_2 * v_{x_2} = C \\
+m_1 * v_{y_1} + m_2 * v_{y_2} = D \\
+F(s) = m_1 * v_1^2 + m_2 * v_2^2 = E
+\end{array}
+\right.
 $$
 
-This is an example of a correct transformation:
+Our job is to find a perfect scaling $s$ for the normal vector, such that when both of the ball velocity are changed by that normal vector (scaled up and down depending on the mass), they will still be a valid solution of the system of equation.
 
-$$
-\begin{pmatrix}
-\cos(\theta) & 0 & -\sin(\theta) \\
-0 & 1 & 0 \\
-\sin(\theta) & 0 & \cos(\theta)
-\end{pmatrix}
-$$
+Noticed how our target function $F(s)$ is a positive quadratic function. Which means the outcome for each $s$ would look like this:
 
-The whole thing blows up without that minus sign.
+![alt text](image-1.jpg)
 
-This is the rough sketch of our transformation. Because we are not doing this with a GPU, we don't need to actually implement matrix multiplication. Writing 3 lines of formula is straight up faster.
+*Figure 2: The function F(s). The horizontal line is y = E.*
+
+Because $s = 0$ is already a solution of the equation $F(s) = E$, we only need to find the other solution by binary searching for the smallest point such that $F(s) \geq E$.
+
+Code:
 
 ```cpp
-Point3 externalTransform(Point3 p) {
-	p -= player_pos;
-	Point3 u(p.x * cos(yaw) - p.z * sin(yaw), 
-        p.y, 
-        p.z * cos(yaw) + p.x * sin(yaw));
-	Point3 v(u.x, 
-        u.y * sin(pitch) - u.z * cos(pitch), 
-        u.z * sin(pitch) + u.y * cos(pitch));
-	return v;
+
+void collision(Entity& o1, Entity& o2) {
+	Point2 diff = (o1.u - o2.u).normalized();
+	float kin = o1.get_kinetic_energy() + o2.get_kinetic_energy();
+	float weight_diff = o1.m / o2.m;
+		
+	float l = 0.01, r = 4000;
+	for (int it = 0; it < 100; ++it) {
+		float mid = (l + r) / 2;
+		Entity o3 = o1, o4 = o2;
+		o3.v += diff * mid;
+		o4.v -= diff * mid * weight_diff;
+
+		if (o3.get_kinetic_energy() + o4.get_kinetic_energy() <= kin) l = mid;
+		else r = mid;
+	}
+	o1.v += diff * l;
+	o2.v -= diff * l * weight_diff;
 }
 ```
 
-Our 3D is basically done, we successfully draw a cube!
+With a bit more coding, we already have ourselves a billiard table (note that we are only dealing with, at best, 16 balls, so optimized collision checking algorithms are not needed)! This is actually kind of playable.
 
-### 4. Polishing stuff
+![](image-1.png)
 
-So is that it? Did we conquer Japan? Not yet.
+*Figure 3: A pool table.*
 
-![alt text](image-3.png)
+To calculate the strength of our stroke, we simply just have to calculate the dot product between:
+- The normalized distance between the initial mouse position and the cue ball.
+- The distance between the initial mouse position and the final mouse position after releasing.
 
-*Figure 4: A very ugly looking cube.*
+We have an almost complete game. But there is a missing flavor: Spin. 
 
-We have to somehow apply lighting and shading to the cube. Luckily, there is an easy way to do this using dot product.
+### 3. Spin
 
-Using the same logic as the last section, we can tell if a face is facing towards or away from the light source. We simply just have to calculate the dot product of the light ray and the surface normal vector, and offset by some amount to the color space.
+Oh boy, spin is so complex and gave me so much headache. And that is when I learn something when it comes to physics simulation: Just make assumption!
+
+In contrary to object collision, spin is harder to implement, but also harder to notice something was wrong. So, my job is to make a convincing physics model that doesn't require 4 years of undergraduate education in Waterloo. Here are my assumptions:
+- There are three plane of spin: X, Y, Z. (X and Y is the spin on the table, while Z is the side spin.)
+- We can separate them.
+- Friction will turn translational velocity to rotational velocity and vice versa.
+- Rotational velocity and translational velocity will be diminished by the friction force without any consequence.
+- Only side spin (Z) get translated when colliding with other balls and with a rails. Spin in the X and Y direction will not get translated (They can be turned into Z-spin as well if they do get translated, which is fucking disgusting).
+
+With these assumption in mind, let's build our own billiard model!
+
+As usual, we will also solve the 1D problem first.
+
+For each object, there would be two vector: translational vector and rotational vector. Simply put, translational vector is how fast the object is moving, and rotational vector is how fast the object will move if it obey the spin completely.
+
+For example: $\vec T = 5$ and $\vec R = 0$ means the object is moving without spinning (skidding), $\vec T = 0$ and $\vec R = 5$ means the object is spinning without moving (slipping), $\vec T = 3$ and $\vec R = 3$ means it's a normal rolling object, which is ideal and is what the physics want.
+
+In the case where $\vec R \neq \vec T$, the friction force will turn translational velocity into rotational velocity or vice versa so that these two are equal again. 
+
+We can easily expand this into 2D:
 
 ```cpp
-Point3 light_cast(-0.5, -2, -1);
-for (int f = 0; f < 6; ++f) {
-    float light_intensity = dotProduct(light_cast, normal[f]);
-    float brightness = 140 - light_intensity * 40;
-    sf::Color cur = sf::Color(brightness, brightness, brightness);
+void Entity::progress(float delta, bool has_friction) {
+	u += v * delta;
+	if (!has_friction) return;
+
+	// correcting translational and rotational energy, so that they are getting closer to each other
+	if ((v - r).length() > 0) {
+		float v1 = (v - r).length() * 0.5f, v2 = ROLL_MU * delta;
+		float len = std::min(v1, v2);
+		Point2 diff = (v - r).normalized() * len;
+		r += diff;
+		v -= diff;
+	}
 }
 ```
 
-![alt text](image-4.png)
-
-
-*Figure 5: A very handsome looking cube.*
-
-So we generated one cube. How do we generate multiple cube? Generate multiple cube is harder, since we have to know which face to generate first.
-
-The naive solution would be to make all the faces, then sort them by distance to the player. This runs in $O(F \log F)$, which is excruciatingly slow. However, as we have mentioned before, cube behaves nicely, and so we can generate blocks by their distance to the player. Any distance function will work.
-
-Here is how the code looks like.
-
+We have to take into account that our rotational and translational velocity will lose to time due to the friction force, so we will also implement that:
 
 ```cpp
-std::vector<int> orderX, orderY, orderZ;
-for (int i = 0; i < W; ++i) {
-	orderX.push_back(i);
-	orderY.push_back(i);
-	orderZ.push_back(i);
+void disperse(Point2 &v, float F) {
+	float len = v.length();
+	if (len <= F) {
+		v = Point2(0, 0);
+	}
+	else {
+		v -= v.normalized() * F;
+	}
 }
-
-std::sort(ALL(orderX), [](int a, int b) {
-	return std::abs(player_pos.x - a) > std::abs(player_pos.x - b);
-	});
-std::sort(ALL(orderY), [](int a, int b) {
-	return std::abs(player_pos.y - a) > std::abs(player_pos.y - b);
-	});
-std::sort(ALL(orderZ), [](int a, int b) {
-	return std::abs(player_pos.z - a) > std::abs(player_pos.z - b);
-	});
-
-for (int i: orderX)
-	for (int j: orderY)
-		for (int k: orderZ) 
-			if (world.get_block_type(i, j, k))
-				draw_cube(Point3(i, j, k));
 ```
 
-So we can draw multiple cube in $O(F)$ now. That's great, but our program performance still sucks.
+Our model is almost complete, and we now have topspin and backspin in our billiard game, which is very fun to mess around with. Now we are going to implement side spin, which are only going to be there for the purpose of interacting with rails.
 
-Here is a few optimization tricks:
+We just have to add another attribute $r_z$, and when we collide with other object, $r_z$ will be distributed between them. 
 
-- If a face is facing another block, you can skip generating the face.
-- Load everyone into the buffer at once, then use a single draw call. If you create a buffer and draw call for every single triangle, then it would be a shit load of overhead.'
+```cpp
+float half_spin = (o1.r_z * o1.m + o2.r_z * o2.m) / (o1.m + o2.m);
+o1.r_z -= half_spin * o1.m;
+o2.r_z -= half_spin * o2.m;
+```
 
-This should speed up our program by an order of magnitude. I think I can optimize this a bit more, but I'm too tired.
+When an object collide with a rail, half of the side spin will get converted into translational energy as well:
 
-### 5. Player interaction.
+```cpp
+int cur = check_collide_edge(o1, delta);
+float amount = o1.r_z * 0.5f;
+o1.r_z *= 0.5f;
+if (GETBIT(cur, 0)) { // collide with vertical rail
+	if (o1.v.x > 0) 
+		o1.v.y += amount;
+	else o1.v.y -= amount;
+	o1.v.x *= -1;
+}
+if (GETBIT(cur, 1)) { // collide with horizontal rail
+	if (o1.v.y > 0)
+		o1.v.x -= amount;
+	else o1.v.x += amount;
+	o1.v.y *= -1;
+}
+```
 
-We will also implement breaking and placing block.
+There is still a bit of tweaking, such as atjusting the translational friction, rolling friction and sidespin friction, as well as making the object's velocity diminish after each collision. However, they aren't the most exciting thing in the world so I won't list them here. You guys should be pretty familiar with the SWEs portion of this game.
 
-I'm too lazy to work out the optimized math for really long range. Luckily, Minecraft only allow reaching 5 blocks, so I'm thankful.
+### 4. Epilogue
 
-My solution is literally just look through blocks with distance of less than 5 from the player, then check if the player can see one of the face of the block.
-
-To check if the player can see that face, you can convert the face into the 2D plane, then use cross product to determine if the triangle contains $(0, 0)$.
-
-For breaking block, the target block would be of the face we are looking at. For placing block, the target block would be the block that the face we are looking at are facing.
-
-### 6. Epilogue
-
-I don't know, I made this in 3 hours. I left my own thinking process here, because I find figuring out things for yourself very cool and fun.
+I finished this project in around 2 days, and I think I learned a lot from playing around with physics. Now it's 2:16 AM, and I can finally rest.

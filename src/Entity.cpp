@@ -7,7 +7,7 @@ Entity::Entity(float m, int t, Point2 u, Point2 v,
 	Point2 r, float r_z) : m(m), t(t), u(u), v(v), r(r), r_z(r_z){}
 
 const float G = 980;
-const float MU = 300;
+const float MU = 200;
 const float ROLL_MU = 500;
 const float SPIN_MU = 100;
 
