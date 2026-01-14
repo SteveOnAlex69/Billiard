@@ -19,12 +19,10 @@ An elastic collision means that the total momentum and the total kinetic energy 
 In other word:
 
 $$
-\left\{
-\begin{array}{l}
-m_1 * v_1 + m_2 * v_2 = C \\
-m_1 * v_1^2 + m_2 * v_2^2 = D 
-\end{array}
-\right.
+\begin{aligned}
+m_1 * v_1 + m_2 * v_2 &= C \\
+m_1 * v_1^2 + m_2 * v_2^2 &= D 
+\end{aligned}
 
 $$
 
@@ -36,13 +34,11 @@ With a few lines of reasoning of algebra (taking advantage of the fact that in t
 
 
 $$
-\left\{
-\begin{array}{l}
-S = \frac{m_1 * v_1 + m_2 * v_2}{m_1 + m_2}\\
-v_3 = S - v_1 \\
-v_4 = S - v_2
-\end{array}
-\right.
+\begin{aligned}
+S &= \frac{m_1 * v_1 + m_2 * v_2}{m_1 + m_2}\\
+v_3 &= S - v_1 \\
+v_4 &= S - v_2
+\end{aligned}
 $$
 
 That's actually pretty clean! With this alone, we can already do some pretty interesting experiment, such as computing PI using colliding objects:
@@ -64,13 +60,11 @@ We can still make quadratic formula like in the last part. However, I would like
 Let's look at the system of equation again.
 
 $$
-\left\{
-\begin{array}{l}
-m_1 * v_{x_1} + m_2 * v_{x_2} = C \\
-m_1 * v_{y_1} + m_2 * v_{y_2} = D \\
-F(s) = m_1 * v_1^2 + m_2 * v_2^2 = E
-\end{array}
-\right.
+\begin{aligned}
+m_1 * v_{x_1} + m_2 * v_{x_2} &= C \\
+m_1 * v_{y_1} + m_2 * v_{y_2} &= D \\
+F(s) = m_1 * v_1^2 + m_2 * v_2^2 &= E
+\end{aligned}
 $$
 
 Our job is to find a perfect scaling $s$ for the normal vector, such that when both of the ball velocity are changed by that normal vector (scaled up and down depending on the mass), they will still be a valid solution of the system of equation.
