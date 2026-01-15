@@ -34,7 +34,7 @@ With a few lines of reasoning of algebra (taking advantage of the fact that in t
 
 $$
 \begin{aligned}
-S &= \frac{m_1 * v_1 + m_2 * v_2}{m_1 + m_2}\\
+S &= 2 * \frac{m_1 * v_1 + m_2 * v_2}{m_1 + m_2}\\
 v_3 &= S - v_1 \\
 v_4 &= S - v_2
 \end{aligned}
